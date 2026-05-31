@@ -25,6 +25,7 @@ kubectl-plan answers: "Is it safe to do this right now?"
 - [Key Features](#key-features)
 - [Sample Output](#sample-output)
 - [Installation](#installation)
+- [Quickstart](#quickstart)
 - [Building from Source](#building-from-source)
 - [Usage — v0.1 Commands](#usage--v01-commands)
 - [Configuration](#configuration)
@@ -111,22 +112,111 @@ RECOMMENDATION:
 kubectl krew install plan
 ```
 
-### Pre-built Binary
-
-Download the latest binary for your platform from the [Releases](https://github.com/samaasi/kubectl-plan/releases/latest) page and place it in your `PATH`:
-
-```bash
-# Linux / macOS (example — check releases page for your platform)
-curl -Lo kubectl-plan https://github.com/samaasi/kubectl-plan/releases/latest/download/kubectl-plan_linux_amd64
-chmod +x kubectl-plan
-sudo mv kubectl-plan /usr/local/bin/
-```
-
-Once the binary is in your `PATH`, kubectl discovers it automatically:
+Once installed, kubectl discovers the plugin automatically:
 
 ```bash
 kubectl plan --help
 ```
+
+### Pre-built Binary
+
+Download the latest binary from the [Releases](https://github.com/samaasi/kubectl-plan/releases/latest) page:
+
+```bash
+# Linux / macOS
+curl -Lo kubectl-plan \
+  https://github.com/samaasi/kubectl-plan/releases/latest/download/kubectl-plan_linux_amd64
+chmod +x kubectl-plan
+sudo mv kubectl-plan /usr/local/bin/
+```
+
+Windows: download `kubectl-plan_windows_amd64.exe`, rename to `kubectl-plan.exe`, place in a directory on `%PATH%`.
+
+---
+
+## Quickstart
+
+
+Two paths depending on what you have available.
+
+### Path A — You have a running cluster
+
+If you already have kubectl connected to a cluster (EKS, GKE, AKS, k3s, Minikube, etc.):
+
+```bash
+# 1. Build and install
+git clone https://github.com/samaasi/kubectl-plan.git
+cd kubectl-plan
+go build -o kubectl-plan ./cmd/kubectl-plan
+sudo mv kubectl-plan /usr/local/bin/   # Windows: copy to a dir in %PATH%
+
+# 2. Apply read-only RBAC (only needed once per cluster)
+kubectl apply -f deploy/rbac/clusterrole.yaml
+# Edit clusterrolebinding.yaml to set your username, then:
+kubectl apply -f deploy/rbac/clusterrolebinding.yaml
+
+# 3. Diagnose your environment first
+kubectl plan doctor
+
+# 4. Pick any deployment in your cluster and analyse it
+kubectl plan scale deployment/<your-deployment> --replicas=0 -n <namespace>
+kubectl plan why deployment/<your-deployment> -n <namespace>
+```
+
+> **Not sure which deployment to try?** Pick something non-critical in a staging namespace.
+> `kubectl get deployments -A` lists everything available.
+
+---
+
+### Path B — No cluster yet (local Kind)
+
+Requires: [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) and Docker.
+
+```bash
+git clone https://github.com/samaasi/kubectl-plan.git
+cd kubectl-plan
+
+# Build the binary
+go build -o kubectl-plan ./cmd/kubectl-plan
+sudo mv kubectl-plan /usr/local/bin/
+
+# Spin up a local cluster pre-loaded with test workloads
+./hack/test-cluster/setup.sh
+
+# The script prints the context name when done. Then:
+kubectl plan doctor --context kind-kubectl-plan-test
+
+kubectl plan scale deployment/payment-api --replicas=0 \
+  --context kind-kubectl-plan-test -n production
+
+kubectl plan why deployment/payment-api \
+  --context kind-kubectl-plan-test -n production
+
+kubectl plan restart deployment/checkout-service \
+  --context kind-kubectl-plan-test -n production
+```
+
+The test workloads (`payment-api`, `checkout-service`, `billing-service`) are pre-wired with env var references and cross-namespace dependencies so you see a realistic dependency graph on the first run.
+
+---
+
+### What to expect
+
+`kubectl plan doctor` output tells you the confidence level of your environment:
+
+```
+DATA SOURCES:
+  ✓ Kubernetes API    reachable · N resources scanned
+  ✗ Prometheus        not found — topology-only scoring active
+
+ESTIMATED ANALYSIS CONFIDENCE:
+  52%  █████░░░░░
+
+TO IMPROVE CONFIDENCE:
+  → Integrate Prometheus data source (v0.2)
+```
+
+Topology-only (no Prometheus) is fully functional for v0.1 — you get dependency graph analysis, risk scoring, and recommendations. Prometheus adds real traffic evidence in v0.2.
 
 ---
 
