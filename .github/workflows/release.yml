@@ -23,6 +23,11 @@ jobs:
           go-version: '1.22'
           cache: true
 
+      - name: Verify Tag is on Master Branch
+        run: |
+          git fetch origin master
+          git branch -r --contains HEAD | grep -q "origin/master" || (echo "Error: Tag must be pushed on master branch!" && exit 1)
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
