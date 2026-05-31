@@ -10,7 +10,7 @@ risk_score = Σ (rule_weight × rule_value) / Σ active_rule_weights × 10
 
 The result is normalized to a `0.0–10.0` scale.
 
-## Phase 1 Rule Registry
+## v0.1 Rule Registry
 
 | Rule ID | Weight | Value Logic |
 |---|---|---|
@@ -31,7 +31,7 @@ The result is normalized to a `0.0–10.0` scale.
 | 6.1–8.5 | HIGH | Red |
 | 8.6–10.0 | CRITICAL | Bold red |
 
-## Phase 2 Additions (Prometheus)
+## v0.2 Additions (Prometheus)
 
 When Prometheus is available, three additional rules activate:
 

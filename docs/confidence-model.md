@@ -26,7 +26,7 @@ Every relationship in the dependency graph is tagged with the evidence that prod
 | `dns_pattern` | 0.65 | Pattern match in string values |
 | `volume_mount` | 0.60 | Indirect dependency |
 | `cron_url_match` | 0.50 | Best-effort regex |
-| `prometheus_traffic` | 0.99 | Observed real traffic (Phase 2) |
+| `prometheus_traffic` | 0.99 | Observed real traffic (v0.2) |
 
 Edge confidence = max of all evidence confidences on that edge. One strong piece of evidence makes an edge high-confidence.
 

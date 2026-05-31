@@ -26,7 +26,7 @@ kubectl-plan answers: "Is it safe to do this right now?"
 - [Sample Output](#sample-output)
 - [Installation](#installation)
 - [Building from Source](#building-from-source)
-- [Usage — Phase 1 Commands](#usage--phase-1-commands)
+- [Usage — v0.1 Commands](#usage--v01-commands)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
@@ -60,7 +60,7 @@ No existing tool answers the last question. That gap is where this project lives
 - **Outage prevention** — pre-flight checks for the commands engineers run without thinking: `scale`, `restart`, `delete`
 - **Auditable scores** — inspect the deterministic mathematical scoring breakdown using `kubectl plan why`
 - **Readiness diagnostics** — diagnose exactly how ready your environment is to provide high-confidence checks with `kubectl plan doctor`
-- **Read-only by design** — `kubectl-plan` never mutates your cluster through Phase 4 (see [SECURITY.md](SECURITY.md))
+- **Read-only by design** — `kubectl-plan` never mutates your cluster through `v0.4` (see [SECURITY.md](SECURITY.md))
 
 ---
 
@@ -169,7 +169,7 @@ kubectl-plan version
 
 ---
 
-## Usage — Phase 1 Commands
+## Usage — v0.1 Commands
 
 All commands require a working `kubeconfig`. By default they target the current context and namespace.
 
@@ -346,7 +346,7 @@ Or grant permissions manually — see [docs/installation.md](docs/installation.m
           └────────────────────┘
 ```
 
-**Resolution algorithm (Phase 1 — K8s API only):**
+**Resolution algorithm (v0.1 — K8s API only):**
 
 1. `ownerReferences` — authoritative parent/child links (confidence: 1.00)
 2. Service label selectors matching pod labels (confidence: 0.95)
@@ -461,13 +461,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ## Roadmap
 
-`kubectl-plan` is built in focused phases. Each phase ships independently usable functionality.
+Each milestone ships independently useful functionality. The tool is usable today at `v0.1`.
 
-### ✅ Phase 1 — MVP Core _(current)_
+### ✅ v0.1 — Core _(current)_
 
-> **Goal:** A working `kubectl plan` plugin that delivers risk output in seconds with zero external dependencies.
+> A working `kubectl plan` plugin that delivers risk output in seconds with zero external dependencies.
 
-| Command | Status |
+| Capability | Status |
 |---|---|
 | `kubectl plan scale` | ✅ Shipped |
 | `kubectl plan restart` | ✅ Shipped |
@@ -482,26 +482,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 | RBAC manifests (read-only ClusterRole) | ✅ Shipped |
 | GoReleaser multi-platform distribution | ✅ Shipped |
 
-**Phase 1 produces no writes to the cluster.** Every command is a read-only analysis.
+`v0.1` produces no writes to the cluster. Every command is a read-only analysis.
 
 ---
 
-### 🔄 Phase 2 — Observability Integration _(Month 2)_
+### 🔄 v0.2 — Observability Integration
 
-> **Goal:** Replace topological inference with real traffic evidence from Prometheus.
+> Replace topological inference with real traffic evidence from Prometheus.
 
 - Auto-discover Prometheus in cluster (flag → env var → K8s API scan)
 - Named PromQL builders for traffic, error rate, P99 latency
-- Evidence enrichment: upgrade topology edges with real traffic data (confidence → 0.99)
-- Discover Prometheus-only dependencies (traffic with no K8s topology reason)
+- Evidence enrichment: upgrade topology edges with observed traffic (confidence → 0.99)
+- Discover Prometheus-only dependencies invisible to topology analysis
 - 3 new risk rules: `live_request_rate`, `error_rate_elevated`, `p99_latency_high`
 - Graceful degradation: topology-only mode when Prometheus is absent
 
 ---
 
-### 🔄 Phase 3 — GitOps Integration _(Month 3)_
+### 🔄 v0.3 — GitOps Integration
 
-> **Goal:** Shift risk analysis left into PR workflows and manifest diffs.
+> Shift risk analysis left into PR workflows and manifest diffs.
 
 - `kubectl plan manifest ./k8s/` — diff manifests vs live cluster, run analysis per changed resource
 - ArgoCD PreSync resource hook + PR comment posting
@@ -511,26 +511,27 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ---
 
-### 🔄 Phase 4 — Historical Impact Memory _(Month 4)_
+### 🔄 v0.4 — Historical Impact Memory
 
-> **Goal:** Stop inferring. Start remembering.
+> Stop inferring. Start remembering.
 
 - Append-only local history store (`~/.kubectl-plan/history.jsonl`)
 - Record every plan run with risk score, confidence, and cluster ID
 - Outcome recording: manual and automatic via Prometheus polling
 - `kubectl plan history deployment/payment-api` — surface past operations on same target
-- Historical evidence surfaces in risk output: "Previous scale 3→1 caused +32% latency"
+- Historical evidence in risk output: "Previous scale 3→1 caused +32% latency"
 
 ---
 
-### 🔄 Phase 5 — Admission Controller _(Month 5+)_
+### 🔄 v1.0 — Stable + Admission Controller _(opt-in)_
 
-> **Goal:** Enforce risk thresholds at the API server level for teams that require it.
+> Enforce risk thresholds at the API server level for teams that require it.
 
 - `ValidatingAdmissionWebhook` server
 - Configurable risk threshold + bypass label
 - cert-manager integration for TLS
 - Optional — designed for regulated or high-stakes environments only
+- Stability guarantee: API compatibility from this release forward
 
 ---
 
@@ -548,7 +549,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## Security
 
-`kubectl-plan` is read-only through Phase 4. It never creates, patches, or deletes any Kubernetes resource.
+`kubectl-plan` is **read-only through v0.4**. It never creates, patches, or deletes any Kubernetes resource.
 
 See [SECURITY.md](SECURITY.md) for the full security policy, including the telemetry data sanitization commitment and how to report vulnerabilities.
 

@@ -289,9 +289,9 @@ func (r *Renderer) RenderDoctor(res *DoctorResult) error {
 	)
 
 	fmt.Fprintln(r.writer, bold.Sprint("TO IMPROVE CONFIDENCE:"))
-	fmt.Fprintln(r.writer, "  → Integrate Prometheus data source (Phase 2)")
-	fmt.Fprintln(r.writer, "  → Install Istio or Linkerd for traffic topology evidence (Phase 3)")
-	fmt.Fprintln(r.writer, "  → Create historical record store (Phase 4)")
+	fmt.Fprintln(r.writer, "  → Integrate Prometheus data source (v0.2)")
+	fmt.Fprintln(r.writer, "  → Install Istio or Linkerd for traffic topology evidence (v0.3)")
+	fmt.Fprintln(r.writer, "  → Create historical record store (v0.4)")
 
 	return nil
 }
