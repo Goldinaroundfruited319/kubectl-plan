@@ -21,7 +21,7 @@ jobs:
           cache: true
 
       - name: Check formatting
-        run: test -z "$(gofmt -l ./cmd ./internal ./pkg)"
+        run: test -z "$(gofmt -s -l ./cmd ./internal ./pkg)"
 
       - name: Run Unit Tests
         run: go test ./... -v -race -coverprofile=coverage.out
