@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/samaasi/kubectl-plan/actions/workflows/ci.yml/badge.svg)](https://github.com/samaasi/kubectl-plan/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/samaasi/kubectl-plan)](https://goreportcard.com/report/github.com/samaasi/kubectl-plan)
+[![Coverage](https://codecov.io/gh/samaasi/kubectl-plan/branch/master/graph/badge.svg)](https://codecov.io/gh/samaasi/kubectl-plan)
 [![License](https://img.shields.io/github/license/samaasi/kubectl-plan)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/samaasi/kubectl-plan)](https://github.com/samaasi/kubectl-plan/releases/latest)
 
