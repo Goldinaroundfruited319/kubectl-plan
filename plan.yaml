@@ -1,0 +1,93 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: plan
+spec:
+  version: "v0.1.6"
+  homepage: https://github.com/samaasi/kubectl-plan
+  shortDescription: "Pre-flight risk analysis for Kubernetes operations"
+  description: |
+    kubectl-plan builds a live dependency graph of a target resource and
+    calculates a risk score and blast radius before you scale, restart,
+    or delete it. Operates entirely read-only against the Kubernetes API.
+  caveats: |
+    Requires read-only RBAC permissions.
+    Run: kubectl apply -f https://raw.githubusercontent.com/samaasi/kubectl-plan/master/deploy/rbac/clusterrole.yaml
+  platforms:
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_linux_amd64.tar.gz
+    sha256: PLACEHOLDER_linux_amd64
+    files:
+    - from: kubectl-plan
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan
+
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_linux_arm64.tar.gz
+    sha256: PLACEHOLDER_linux_arm64
+    files:
+    - from: kubectl-plan
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan
+
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_darwin_amd64.tar.gz
+    sha256: PLACEHOLDER_darwin_amd64
+    files:
+    - from: kubectl-plan
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan
+
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_darwin_arm64.tar.gz
+    sha256: PLACEHOLDER_darwin_arm64
+    files:
+    - from: kubectl-plan
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan
+
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_windows_amd64.zip
+    sha256: PLACEHOLDER_windows_amd64
+    files:
+    - from: kubectl-plan.exe
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan.exe
+
+  - selector:
+      matchLabels:
+        os: windows
+        arch: arm64
+    uri: https://github.com/samaasi/kubectl-plan/releases/download/v0.1.6/kubectl-plan_windows_arm64.zip
+    sha256: PLACEHOLDER_windows_arm64
+    files:
+    - from: kubectl-plan.exe
+      to: .
+    - from: LICENSE
+      to: .
+    bin: kubectl-plan.exe
