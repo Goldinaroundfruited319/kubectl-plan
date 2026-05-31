@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/spf13/cobra"
 	"github.com/samaasi/kubectl-plan/internal/analysis"
 	"github.com/samaasi/kubectl-plan/internal/k8s"
 	"github.com/samaasi/kubectl-plan/internal/output"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -50,25 +50,7 @@ It analyzes dependencies via Kubernetes topology (and optionally Prometheus) to 
 		Example: `  kubectl plan scale deployment payment-api --replicas=0
   kubectl plan scale deployment/payment-api --replicas=2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kind, name, err := parseArgs(args)
-			if err != nil {
-				return err
-			}
-
-			client, err := k8s.NewClient(kubeContext, namespace)
-			if err != nil {
-				return fmt.Errorf("failed to create k8s client: %w", err)
-			}
-
-			engine := analysis.NewEngine(client)
-			actionStr := fmt.Sprintf("scale --replicas=%d", replicas)
-			res, err := engine.Analyze(context.Background(), actionStr, kind, name)
-			if err != nil {
-				return fmt.Errorf("analysis failed: %w", err)
-			}
-
-			renderer := output.NewRenderer(outputFormat, os.Stdout, asciiOnly)
-			return renderer.Render(res)
+			return runAnalyze(args, fmt.Sprintf("scale --replicas=%d", replicas))
 		},
 	}
 	scaleCmd.Flags().IntVar(&replicas, "replicas", -1, "Target replicas count")
@@ -80,24 +62,7 @@ It analyzes dependencies via Kubernetes topology (and optionally Prometheus) to 
 		Example: `  kubectl plan restart deployment payment-api
   kubectl plan restart statefulset/payment-db`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kind, name, err := parseArgs(args)
-			if err != nil {
-				return err
-			}
-
-			client, err := k8s.NewClient(kubeContext, namespace)
-			if err != nil {
-				return fmt.Errorf("failed to create k8s client: %w", err)
-			}
-
-			engine := analysis.NewEngine(client)
-			res, err := engine.Analyze(context.Background(), "rollout restart", kind, name)
-			if err != nil {
-				return fmt.Errorf("analysis failed: %w", err)
-			}
-
-			renderer := output.NewRenderer(outputFormat, os.Stdout, asciiOnly)
-			return renderer.Render(res)
+			return runAnalyze(args, "rollout restart")
 		},
 	}
 
@@ -111,18 +76,14 @@ It analyzes dependencies via Kubernetes topology (and optionally Prometheus) to 
 			if err != nil {
 				return err
 			}
-
 			client, err := k8s.NewClient(kubeContext, namespace)
 			if err != nil {
 				return fmt.Errorf("failed to create k8s client: %w", err)
 			}
-
-			engine := analysis.NewEngine(client)
-			res, err := engine.Analyze(context.Background(), "why", kind, name)
+			res, err := analysis.NewEngine(client).Analyze(context.Background(), "why", kind, name)
 			if err != nil {
 				return fmt.Errorf("analysis failed: %w", err)
 			}
-
 			renderer := output.NewRenderer(outputFormat, os.Stdout, asciiOnly)
 			if outputFormat == "json" {
 				return renderer.Render(res)
@@ -135,36 +96,7 @@ It analyzes dependencies via Kubernetes topology (and optionally Prometheus) to 
 		Use:   "doctor",
 		Short: "Probes data sources and scores readiness",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := k8s.NewClient(kubeContext, namespace)
-			apiReachable := true
-			if err != nil {
-				apiReachable = false
-			}
-
-			nsName := "default"
-			if client != nil {
-				nsName = client.Namespace
-			}
-
-			docResult := &output.DoctorResult{
-				Namespace:           nsName,
-				K8sAPIReachable:     apiReachable,
-				EstimatedConfidence: 0.65, // Topology only in Week 1
-			}
-
-			renderer := output.NewRenderer(outputFormat, os.Stdout, asciiOnly)
-			if outputFormat == "json" {
-				importJSON := true
-				_ = importJSON // use local encoder
-				importJSONEncoder := os.Stdout
-				importJSONEncoder.Write([]byte("{\n"))
-				fmt.Fprintf(importJSONEncoder, "  \"namespace\": \"%s\",\n", docResult.Namespace)
-				fmt.Fprintf(importJSONEncoder, "  \"k8sAPIReachable\": %v,\n", docResult.K8sAPIReachable)
-				fmt.Fprintf(importJSONEncoder, "  \"estimatedConfidence\": %.2f\n", docResult.EstimatedConfidence)
-				importJSONEncoder.Write([]byte("}\n"))
-				return nil
-			}
-			return renderer.RenderDoctor(docResult)
+			return runDoctor()
 		},
 	}
 
@@ -176,6 +108,49 @@ It analyzes dependencies via Kubernetes topology (and optionally Prometheus) to 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func runAnalyze(args []string, action string) error {
+	kind, name, err := parseArgs(args)
+	if err != nil {
+		return err
+	}
+	client, err := k8s.NewClient(kubeContext, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create k8s client: %w", err)
+	}
+	res, err := analysis.NewEngine(client).Analyze(context.Background(), action, kind, name)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	return output.NewRenderer(outputFormat, os.Stdout, asciiOnly).Render(res)
+}
+
+func runDoctor() error {
+	client, err := k8s.NewClient(kubeContext, namespace)
+	apiReachable := err == nil
+
+	nsName := "default"
+	if client != nil {
+		nsName = client.Namespace
+	}
+
+	docResult := &output.DoctorResult{
+		Namespace:           nsName,
+		K8sAPIReachable:     apiReachable,
+		EstimatedConfidence: 0.65,
+	}
+
+	if outputFormat == "json" {
+		return writeDoctorJSON(docResult)
+	}
+	return output.NewRenderer(outputFormat, os.Stdout, asciiOnly).RenderDoctor(docResult)
+}
+
+func writeDoctorJSON(res *output.DoctorResult) error {
+	fmt.Fprintf(os.Stdout, "{\n  \"namespace\": %q,\n  \"k8sAPIReachable\": %v,\n  \"estimatedConfidence\": %.2f\n}\n",
+		res.Namespace, res.K8sAPIReachable, res.EstimatedConfidence)
+	return nil
 }
 
 func parseArgs(args []string) (string, string, error) {

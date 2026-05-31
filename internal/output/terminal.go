@@ -29,17 +29,8 @@ func (r *Renderer) RenderTerminal(res *analysis.AnalysisResult) error {
 		res.Target.Namespace,
 	)
 
-	riskColor := color.New(color.FgGreen)
-	switch res.Risk.Level {
-	case risk.RiskMedium:
-		riskColor = color.New(color.FgYellow)
-	case risk.RiskHigh:
-		riskColor = color.New(color.FgRed)
-	case risk.RiskCritical:
-		riskColor = color.New(color.FgRed, color.Bold)
-	}
-
 	riskBar := makeProgressBar(res.Risk.Score/10.0, r.ascii)
+	riskColor := riskLevelColor(res.Risk.Level)
 	fmt.Fprintf(r.writer, "%s       %s / 10  %s  %s\n",
 		bold.Sprint("RISK SCORE:"),
 		riskColor.Sprintf("%.1f", res.Risk.Score),
@@ -47,12 +38,7 @@ func (r *Renderer) RenderTerminal(res *analysis.AnalysisResult) error {
 		riskColor.Sprint(res.Risk.Level),
 	)
 
-	confColor := color.New(color.FgYellow)
-	if res.Confidence.Overall >= 0.85 {
-		confColor = color.New(color.FgGreen)
-	} else if res.Confidence.Overall < 0.65 {
-		confColor = color.New(color.FgRed)
-	}
+	confColor := confidenceColor(res.Confidence.Overall)
 	confBar := makeProgressBar(res.Confidence.Overall, r.ascii)
 	fmt.Fprintf(r.writer, "%s        %s      %s  (%s)\n",
 		bold.Sprint("CONFIDENCE:"),
@@ -61,15 +47,7 @@ func (r *Renderer) RenderTerminal(res *analysis.AnalysisResult) error {
 		strings.Join(res.Confidence.Sources, " + "),
 	)
 
-	uncColor := color.New(color.FgGreen)
-	switch res.Uncertainty.Level {
-	case risk.UncertaintyMedium:
-		uncColor = color.New(color.FgYellow)
-	case risk.UncertaintyHigh:
-		uncColor = color.New(color.FgRed)
-	case risk.UncertaintyVeryHigh:
-		uncColor = color.New(color.FgRed, color.Bold)
-	}
+	uncColor := uncertaintyColor(res.Uncertainty.Level)
 	fmt.Fprintf(r.writer, "%s       %s      (%s)\n\n",
 		bold.Sprint("UNCERTAINTY:"),
 		uncColor.Sprint(res.Uncertainty.Level),
@@ -77,70 +55,7 @@ func (r *Renderer) RenderTerminal(res *analysis.AnalysisResult) error {
 	)
 
 	fmt.Fprintln(r.writer, bold.Sprint("DEPENDENTS:"))
-
-	var rootEdges []dependency.Edge
-	for _, edge := range res.Graph.Edges {
-		if edge.Relationship != dependency.RelOwns {
-			rootEdges = append(rootEdges, edge)
-		}
-	}
-
-	if len(rootEdges) == 0 {
-		fmt.Fprintln(r.writer, "  No dependents detected.")
-	} else {
-		tLine := "├─"
-		bLine := "└─"
-		vLine := "│ "
-		if r.ascii {
-			tLine = "|-"
-			bLine = "`-"
-			vLine = "| "
-		}
-
-		for i, edge := range rootEdges {
-			prefix := tLine
-			if i == len(rootEdges)-1 {
-				prefix = bLine
-			}
-
-			fromParts := strings.Split(edge.From, "/")
-			fromName := fromParts[len(fromParts)-1]
-
-			isLowConf := edge.Confidence < 0.65
-			tilde := ""
-			if isLowConf {
-				tilde = "~"
-			}
-
-			directStr := "DIRECT"
-			if edge.Depth > 1 {
-				directStr = "INDIRECT"
-			}
-
-			fmt.Fprintf(r.writer, "  %s %s%s   %-8s  [%d%%]\n",
-				prefix,
-				tilde,
-				fromName,
-				directStr,
-				int(edge.Confidence*100),
-			)
-
-			nextPrefix := "  " + vLine
-			if i == len(rootEdges)-1 {
-				nextPrefix = "    "
-			}
-
-			for _, ev := range edge.Evidence {
-				fmt.Fprintf(r.writer, "%s     Evidence: %s\n",
-					nextPrefix,
-					ev.Description,
-				)
-			}
-			if i < len(rootEdges)-1 {
-				fmt.Fprintf(r.writer, "%s\n", nextPrefix)
-			}
-		}
-	}
+	r.renderDependents(&res.Graph)
 	fmt.Fprintln(r.writer)
 
 	fmt.Fprintln(r.writer, bold.Sprint("UNKNOWN BLAST RADIUS:"))
@@ -161,15 +76,62 @@ func (r *Renderer) RenderTerminal(res *analysis.AnalysisResult) error {
 	fmt.Fprintf(r.writer, "  -----\n  = %.1f / 10\n\n", res.Risk.Score)
 
 	fmt.Fprintln(r.writer, bold.Sprint("RECOMMENDATION:"))
-	if res.Risk.Score >= 8.6 {
-		fmt.Fprintln(r.writer, "  ⚠ CRITICAL RISK: Highly recommend holding off or carrying out during off-peak windows.")
-	} else if res.Risk.Score >= 6.1 {
-		fmt.Fprintln(r.writer, "  ⚠ High risk operation. Proceed with caution and ensure rollback plans are active.")
-	} else {
-		fmt.Fprintln(r.writer, "  ✓ Low risk operation. Safe to proceed.")
-	}
+	fmt.Fprintln(r.writer, recommendation(res.Risk.Score))
 
 	return nil
+}
+
+func (r *Renderer) renderDependents(graph *dependency.DependencyGraph) {
+	var rootEdges []dependency.Edge
+	for _, edge := range graph.Edges {
+		if edge.Relationship != dependency.RelOwns {
+			rootEdges = append(rootEdges, edge)
+		}
+	}
+
+	if len(rootEdges) == 0 {
+		fmt.Fprintln(r.writer, "  No dependents detected.")
+		return
+	}
+
+	tLine, bLine, vLine := "├─", "└─", "│ "
+	if r.ascii {
+		tLine, bLine, vLine = "|-", "`-", "| "
+	}
+
+	for i, edge := range rootEdges {
+		prefix := tLine
+		if i == len(rootEdges)-1 {
+			prefix = bLine
+		}
+
+		fromParts := strings.Split(edge.From, "/")
+		fromName := fromParts[len(fromParts)-1]
+
+		tilde := ""
+		if edge.Confidence < 0.65 {
+			tilde = "~"
+		}
+		directStr := "DIRECT"
+		if edge.Depth > 1 {
+			directStr = "INDIRECT"
+		}
+
+		fmt.Fprintf(r.writer, "  %s %s%s   %-8s  [%d%%]\n",
+			prefix, tilde, fromName, directStr, int(edge.Confidence*100),
+		)
+
+		nextPrefix := "  " + vLine
+		if i == len(rootEdges)-1 {
+			nextPrefix = "    "
+		}
+		for _, ev := range edge.Evidence {
+			fmt.Fprintf(r.writer, "%s     Evidence: %s\n", nextPrefix, ev.Description)
+		}
+		if i < len(rootEdges)-1 {
+			fmt.Fprintf(r.writer, "%s\n", nextPrefix)
+		}
+	}
 }
 
 func (r *Renderer) RenderWhy(res *analysis.AnalysisResult) error {
@@ -181,17 +143,8 @@ func (r *Renderer) RenderWhy(res *analysis.AnalysisResult) error {
 		cyan.Sprint(res.Target.Kind+"/"+res.Target.Name),
 	)
 
-	riskColor := color.New(color.FgGreen)
-	switch res.Risk.Level {
-	case risk.RiskMedium:
-		riskColor = color.New(color.FgYellow)
-	case risk.RiskHigh:
-		riskColor = color.New(color.FgRed)
-	case risk.RiskCritical:
-		riskColor = color.New(color.FgRed, color.Bold)
-	}
-
 	riskBar := makeProgressBar(res.Risk.Score/10.0, r.ascii)
+	riskColor := riskLevelColor(res.Risk.Level)
 	fmt.Fprintf(r.writer, "%-12s %.1f / 10  %s  %s\n",
 		bold.Sprint("Score:"),
 		res.Risk.Score,
@@ -199,12 +152,7 @@ func (r *Renderer) RenderWhy(res *analysis.AnalysisResult) error {
 		riskColor.Sprint(res.Risk.Level),
 	)
 
-	confColor := color.New(color.FgYellow)
-	if res.Confidence.Overall >= 0.85 {
-		confColor = color.New(color.FgGreen)
-	} else if res.Confidence.Overall < 0.65 {
-		confColor = color.New(color.FgRed)
-	}
+	confColor := confidenceColor(res.Confidence.Overall)
 	confBar := makeProgressBar(res.Confidence.Overall, r.ascii)
 	fmt.Fprintf(r.writer, "%-12s %-12s %s  (%s)\n",
 		bold.Sprint("Confidence:"),
@@ -213,15 +161,7 @@ func (r *Renderer) RenderWhy(res *analysis.AnalysisResult) error {
 		strings.Join(res.Confidence.Sources, " + "),
 	)
 
-	uncColor := color.New(color.FgGreen)
-	switch res.Uncertainty.Level {
-	case risk.UncertaintyMedium:
-		uncColor = color.New(color.FgYellow)
-	case risk.UncertaintyHigh:
-		uncColor = color.New(color.FgRed)
-	case risk.UncertaintyVeryHigh:
-		uncColor = color.New(color.FgRed, color.Bold)
-	}
+	uncColor := uncertaintyColor(res.Uncertainty.Level)
 	fmt.Fprintf(r.writer, "%-12s %s         (%s)\n\n",
 		bold.Sprint("Uncertainty:"),
 		uncColor.Sprint(res.Uncertainty.Level),
@@ -234,10 +174,7 @@ func (r *Renderer) RenderWhy(res *analysis.AnalysisResult) error {
 
 	for _, contrib := range res.Risk.Contributors {
 		fmt.Fprintf(r.writer, "  %-32s x%-7d %-7.2f +%.1f\n",
-			contrib.Name,
-			contrib.Weight,
-			contrib.Value,
-			contrib.Contribution,
+			contrib.Name, contrib.Weight, contrib.Value, contrib.Contribution,
 		)
 	}
 	fmt.Fprintln(r.writer, "  "+strings.Repeat("─", 65))
@@ -294,6 +231,52 @@ func (r *Renderer) RenderDoctor(res *DoctorResult) error {
 	fmt.Fprintln(r.writer, "  → Create historical record store (v0.4)")
 
 	return nil
+}
+
+func riskLevelColor(level risk.RiskLevel) *color.Color {
+	switch level {
+	case risk.RiskMedium:
+		return color.New(color.FgYellow)
+	case risk.RiskHigh:
+		return color.New(color.FgRed)
+	case risk.RiskCritical:
+		return color.New(color.FgRed, color.Bold)
+	default:
+		return color.New(color.FgGreen)
+	}
+}
+
+func confidenceColor(overall float64) *color.Color {
+	if overall >= 0.85 {
+		return color.New(color.FgGreen)
+	}
+	if overall < 0.65 {
+		return color.New(color.FgRed)
+	}
+	return color.New(color.FgYellow)
+}
+
+func uncertaintyColor(level risk.UncertaintyLevel) *color.Color {
+	switch level {
+	case risk.UncertaintyMedium:
+		return color.New(color.FgYellow)
+	case risk.UncertaintyHigh:
+		return color.New(color.FgRed)
+	case risk.UncertaintyVeryHigh:
+		return color.New(color.FgRed, color.Bold)
+	default:
+		return color.New(color.FgGreen)
+	}
+}
+
+func recommendation(score float64) string {
+	if score >= 8.6 {
+		return "  ⚠ CRITICAL RISK: Highly recommend holding off or carrying out during off-peak windows."
+	}
+	if score >= 6.1 {
+		return "  ⚠ High risk operation. Proceed with caution and ensure rollback plans are active."
+	}
+	return "  ✓ Low risk operation. Safe to proceed."
 }
 
 func makeProgressBar(pct float64, ascii bool) string {
