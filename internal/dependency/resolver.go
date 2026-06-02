@@ -54,7 +54,7 @@ func (r *Resolver) enrichWithTrafficData(graph *DependencyGraph) {
 	if r.promClient == nil || !r.promClient.IsReachable() {
 		return
 	}
-	
+
 	// We only want to enrich edges that flow into the target (RelSelects, RelRoutes, RelEnvRef, RelVolumeRef)
 	// Actually, traffic usually flows FROM the dependent TO the target.
 	for i, edge := range graph.Edges {
@@ -64,7 +64,7 @@ func (r *Resolver) enrichWithTrafficData(graph *DependencyGraph) {
 
 		// Example: from dependent node to target
 		fromParts := strings.Split(edge.From, "/")
-		
+
 		rate, err := r.promClient.GetTrafficRate(context.Background(), fromParts[1], graph.Target.Name)
 		if err == nil && rate > 0 {
 			graph.Edges[i].Confidence = 0.99

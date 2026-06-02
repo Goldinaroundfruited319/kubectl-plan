@@ -129,7 +129,7 @@ func runAnalyze(args []string, action string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
-	
+
 	promClient := prometheus.NewClient(prometheusURL, lookback)
 	if prometheusURL == "" {
 		_, _ = promClient.Discover(context.Background(), client)
